@@ -63,11 +63,13 @@ function [NormAmp,bandfreqs,bands,bandamps,bandphases,recon_stats,params] = ORCA
 %
 %   params.verbose           Boolean for verbose mode (default: on/1)
 %
-%   params.crossval_percent  Default: .5 Optionally crossvalidate bands using holdout
-%                            data, defined as fraction of whole signal
-%                            (e.g. .5 builds bands based on first 50% of
-%                            signal). If no crossvalidation is desired, set
-%                            to 1.
+%   params.crossval_trainIDX Boolean vector of length equal to signal that defines which signal samples 
+%                            are to be used for training during crossvalidation. Remaining signal samples                            
+%                            are used for testing. By default, the first
+%                            half of the signal is used if not-specified by
+%                            user. Note that particular windows, such as
+%                            pre-trial baselines, can be used to define
+%                            bands.
 
 %   params.numControlPerms   Default: 0: Number of times to calculate r^2 using shuffled
 %                            (circshifted over time axis) amplitude, phase, and frequency estimates.
@@ -94,7 +96,7 @@ function [NormAmp,bandfreqs,bands,bandamps,bandphases,recon_stats,params] = ORCA
 %   NormAmp:                 Bands X Samples. Normalized Amplitude
 %   bandfreqs                Bands X Samples. Frequency estimates using modified "frequency sliding" from MX Cohen J Neuro 2014
 %   bands:                   band edges [low_freq high_freq] per band
-%   bandamps :                Band X samples amplitudes
+%   bandamps :               Band X samples amplitudes
 %   bandphases:              Band X samples phases (radians).
 %   recon_stats:             structure containing information on
 %                            reconstruction, including reconstructed signal, best_r2, best method,
@@ -146,10 +148,10 @@ else
 end
 
 %crossvalidation
-if ~isfield(params,'crossval_percent')
-    params.crossval_percent = .5; %default is to use first half of signal to generate bands
+if ~isfield(params,'crossval_trainIDX')
+    params.crossval_trainIDX = zeros(1,length(signal));
+    params.crossval_trainIDX(1:round(length(signal)/2))=1; %default is to use first half of signal to generate bands
 end
-disp(['Generating bands using the first ',num2str(params.crossval_percent*100),' % of signal'])
 
 %by default, don't calculate r2 using circshifted amp, phase,freq
 if ~isfield(params,'numControlPerms')
@@ -373,7 +375,7 @@ wavefreqs = params.wavefreqs;
 
 %step 1, Define or calculate bands. See documentation
 %above for all options
-if ~isfield(params,'crossval_percent') || params.crossval_percent==0
+if isempty(params.crossval_trainIDX) %empty crossval_training index, so don't do crossval
     if strcmp(params.getband_method,'SCV'); %
         %get SpectCV bands
         [bands,SCV] = Get_SpectCV_Bands(params,pow);
@@ -401,13 +403,10 @@ if ~isfield(params,'crossval_percent') || params.crossval_percent==0
         bands(:,1) = bandLims(1:end-1);
         bands(:,2) = bandLims(2:end);     
     end
-else %crossval
-    trainIDX = 1:round(length(signal)*params.crossval_percent);
-    if params.crossval_percent<1
-        testIDX = max(trainIDX)+1:length(signal);
-    else
-        testIDX = trainIDX;
-    end
+else %crossvalidate using training indices specified in params
+    trainIDX = find(params.crossval_trainIDX==1); 
+    testIDX =  find(params.crossval_trainIDX==0);
+
     
     if strcmp(params.getband_method,'SCV'); %
         %get SpectCV bands
