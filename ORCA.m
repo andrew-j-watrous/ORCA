@@ -12,12 +12,9 @@ function [NormAmp,bandfreqs,bands,bandamps,bandphases,recon_stats,params] = ORCA
 
 %   Inputs
 %   Requires signal and params
-%
-%   Signal is the signal you wish to analyze. 
-%
-%
-%   Params must include the following two fields:
-%   params.freqrange:        [min max] Broadband frequency range to consider (Hz)
+%   signal is the (neural) signal you wish to analyze. 
+%   params must include the following two fields:
+%   params.freqrange:   [min max] Broadband frequency range to consider (Hz)
 %
 %   params.srate:       Original sampling rate of the input signal(Hz) (e.g. 1000 Hz
 %                       sampling: params.srate = 1000). If you elect to
@@ -26,9 +23,16 @@ function [NormAmp,bandfreqs,bands,bandamps,bandphases,recon_stats,params] = ORCA
 %                       sampling rate but instead always define this as the
 %                       original sampling rate of the input signal.
 %
-%   params.bandMethods:       Cell array listing which methods to try, options:                    
-%                              Example: params.bandMethods = {[1 4;4 8;8 12;12 30;30 100],'SCV','CoD','PeakPick'};
-%
+
+%   In addition to the required inputs above, there are many optional input parameters:
+%   Most of these are Booleans/logical
+
+
+%params.bandMethods:    Cell array listing which band identification submethods to use.                    
+%                       By default, all bandmethods are used along with
+%                       canonical classical frequency bands
+                        %(e.g. params.bandMethods = {[1 4;4 8;8 12;12 30;30 100],'SCV','CoD','PeakPick'};
+%                       It is also possible to include or exclude any particular submethod as desired.
 %                      'CoD'.     Define bands based on local minima in
 %                                 coefficient of determination (r2) across
 %                                 frequencies
@@ -45,11 +49,6 @@ function [NormAmp,bandfreqs,bands,bandamps,bandphases,recon_stats,params] = ORCA
 %                      [N X 2]    User defined band edges using N bands. 
 %                                 Min and max freq are set by .5 and Nyquist frequency
 %                      
-%
-
-
-%   In addition to the required inputs above, there are many optional input parameters:
-%   Most of these are Booleans/logical
 
 %   params.downsample        Boolean. Downsample signal (if possible, based
 %                            on maximum frequency of interest). This will
@@ -108,7 +107,10 @@ function [NormAmp,bandfreqs,bands,bandamps,bandphases,recon_stats,params] = ORCA
 disp('************************')
 
 
-%Establish parameters/inputs
+%Establish default parameters
+if ~isfield(params,'bandMethods')
+    params.bandMethods = {[1 4;4 8;8 12;12 30;30 params.srate],'SCV','CoD','PeakPick'};
+end
 if ~isfield(params,'min_bw') %mininmum bandwidth
     params.min_bw = .1;
 end
